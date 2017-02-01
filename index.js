@@ -1,6 +1,6 @@
 var SlackBot = require('slackbots');
 
-var TOKEN = 'xoxb-135911413271-tP7MN7fpshJbiYiSbkmmgsZL';
+var TOKEN = 'REDACTED';
 var ownName = 'wackie'; // TEMP, EXTRACT PROGRAMMATICALLY
 // create a bot 
 var bot = new SlackBot({
