@@ -1,0 +1,21 @@
+{
+  "name": "servicechatbot",
+  "version": "0.0.0",
+  "description": "Simple Slackbot for Hospital Admissions",
+  "main": "index.js",
+  "author": {
+    "name": "Adithya Raghunathan",
+    "email": "ra102@duke.edu"
+  },
+  "homepage": "https://github.com/adithya93/servicechatbot",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/adithya93/servicechatbot"
+  },
+  "license": "MIT",
+  "scripts": {
+  },
+  "dependencies": {
+    "slackbots": "^1.0.2"
+  }
+}
