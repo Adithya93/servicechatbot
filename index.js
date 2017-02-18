@@ -1,26 +1,27 @@
 var SlackBot = require('slackbots');
+require('dotenv').config();
+var TOKEN = process.env.TOKEN;
+var BOTNAME = process.env.BOTNAME;
+console.log("Token: " + TOKEN);
+console.log("Bot Name: " + BOTNAME);
 
-var TOKEN = 'REDACTED';
-var ownName = 'wackie'; // TEMP, EXTRACT PROGRAMMATICALLY
 // create a bot 
 var bot = new SlackBot({
     token: TOKEN, // Add a bot https://my.slack.com/services/new/bot and put the token  
-    name: 'Wackie'
+    name: BOTNAME
 });
 
 var state = 0;
-var currentUser;
-var currentChannel;
-var started = false;
-var done = false;
+var currentUsers = {}; // Upon starting, no currently active users
 
+// GLOBAL ENCODING OF CONTROL FLOW AND LOGIC (MOORE FSM)
 var transitionMatrix = [[0, 1, 2], [1, 2, 3], [2, 3, 4], [3, 0, 4]];
+
+// TO-DO : REFACTOR INTO FILE-READING/ENV LOADING METHOD
 var stateTexts = ["Answer all questions with the corresponding numbers. First question:\nHow old are you?\n1: Under 30\n2: Over 30\n", "Next question:\
 \nAre you male or female?\n1: Male\n2:Female\n", "Next question:\nDo you have children?\n1: Yes\n2: No\n", "Would you like to start over?\n1: Yes\n2: No\n"];
-var validResponses = [];
 var ERROR_MESSAGE = "Sorry, that is not a valid answer. Please enter one of the numbers in the prompt.";
 var PLACEHOLDER = "Alright, noted!";
-// more information about additional params https://api.slack.com/methods/chat.postMessage 
 var params = {
     icon_emoji: ':cat:'
 };
@@ -29,36 +30,37 @@ bot.on('start', function() {
     console.log("Wacky is up!");
     //console.log("Users info: " + JSON.stingify(im.list(TOKEN)));
                 
-            var users = bot.getUsers();
-            console.log(JSON.stringify(users));
+            users = bot.getUsers(); // Will be updated to include users that join after bot has started-up
+            //console.log(JSON.stringify(users));
             console.log("No. of users: " + users["_value"]["members"].length);
             console.log("Groups: " + JSON.stringify(bot.getGroups()));
             console.log("Channels: " + JSON.stringify(bot.getChannels()));
-            var firstRealName = users["_value"]["members"].length > 0 ? users["_value"]["members"][0]["real_name"] : null;
-            var firstUserName = users["_value"]["members"].length > 0 ? users["_value"]["members"][0]["name"] : null;
-            if (firstRealName != null) {
-                console.log("First user in this group: " + firstRealName);
-            }
-            if (firstUserName != null) {
-                console.log("Username of current client: " + firstUserName);
-                //currentUser = firstUserName;
-            }
             // define channel, where bot exist. You can adjust it there https://my.slack.com/services  
-            bot.postMessageToChannel('general', 'yakshemesh!', params);
-
-            // define existing username instead of 'user_name' 
-            //bot.postMessageToUser('ra102', 'booyakasha!', params); 
-            
-            //bot.postMessageToUser(firstUserName, "What's up " + (firstRealName || "friend") + "?", params);
-
+            bot.postMessageToChannel('general', "I'm awake!", params);
             bot.on('message', function(data) {
                 if (data["type"] == "message" && data["subtype"] != "bot_message") {
-                    currentChannel = currentChannel || data["channel"];
-                    console.log("Omg I got a message : " + data["text"]);
+                    var user = data["user"];
+                    var userObj = currentUsers[user];
+                    var userName = userObj['name'];// || fml_getName(user); 
+                    console.log("Message from " + userName + " : " + data["text"]);
+                    /*
                     if (done) bot.postMessageToUser(currentUser, PLACEHOLDER, params);
                     else {
                         //bot.postMessageToUser(firstUserName, data["text"], params);
                         started ? processInput(data["text"]) : startQuestions();
+                    }
+                    */
+                    //console.log("Here's all the message info: " + JSON.stringify(data));
+                    if (!userName) {
+                        console.log("User not yet tracked! Treating as new user.");
+                        initUser(user);
+                        userName = currentUsers[user]['name']; // Check if call to fml_getname succeeded
+                    }
+                    else {
+                        if (currentUsers[user]['done']) bot.postMessageToUser(user, PLACEHOLDER, params);
+                        else {
+                            currentUsers[user]['started'] ? processInput(data["text"], user) : startQuestions(user);
+                        }
                     }
                 }
                 else if (data["subtype"] == "bot_message") {
@@ -69,32 +71,28 @@ bot.on('start', function() {
                         var user = data["user"];
                         console.log("User " + user + " is now available!");
                         var foundUser = fml_getName(user);
-                        if (foundUser != ownName) {
-                            bot.postMessageToUser(foundUser, "Welcome back!", params);
-                            console.log("Resetting status");
-                            resetStatus();
-                            currentUser = foundUser;
-                            console.log("Set current user to " + currentUser);
+                        if (foundUser != BOTNAME) {
+                            console.log("Resetting user " + foundUser + "'s status");
+                            bot.postMessageToUser(foundUser, "Welcome back " + foundUser + "!", params);
                         }
-                        //console.log("User is " + JSON.stringify(bot.getUserId(user)));
                     }
                     else {
                         console.log("Presence change: " + data["presence"]);
-                        resetStatus();
                     }
+                    resetStatus(user);
                 }
                 else if (data["type"] == "team_join") {
                     var user = data["user"];
-                    console.log("Newly joined team member is " + JSON.stringify(user));
-                    currentUser = user["name"];
-                    resetStatus();
+                    console.log("Newly joined user is " + JSON.stringify(user));
+                    resetStatus(user);
+                    var foundUser = user["name"];
+                    bot.postMessageToUser(foundUser, "Welcome " + foundUser + "!", params);
+                    users["_value"]["members"].push(user); // handle joins after server started
                 }
                 else {
                     console.log("Other event type: " + data["type"]);
                 }
             });
-        //}
-        //else console.log("User " + data["user"] + " is now away, igoring");
 
     //});    
     // If you add a 'slackbot' property,  
@@ -103,52 +101,77 @@ bot.on('start', function() {
     // define private group instead of 'private_group', where bot exist 
     //bot.postMessageToGroup('private_group', 'meow!', params); 
 
-    bot.on('close', function() {
-        saveChannel(); //
-    });
+    bot.on('close', saveAll); //
 });
 
-function resetStatus() {
-    state = 0;
-    started = false;
-    done = false;
+
+// Called when a new user logs in, which will happen when they sign in with some ID and are redirected to wackie
+function initUser(user) {
+    var newUserObj = {'state' : 0, 'responses': [], 'started' : false, 'done': false, 'name' : fml_getName(user) || 'friend'};
+    currentUsers[user] = newUserObj;
+    console.log("Wackie is now tracking user " + fml_getName(user));
+}
+
+function resetStatus(user) {
+    currentUsers[user]['state'] = 0;
+    currentUsers[user]['started'] = false;
+    currentUsers[user]['done'] = false;
 }
 
 
-function startQuestions() {
-    started = true;
-    bot.postMessageToUser(currentUser, "Great! " + stateTexts[0], params);
+function startQuestions(user) {
+    currentUsers[user]['started'] = true;
+    bot.postMessageToUser(user, "Great! " + stateTexts[0], params);
 }
 
-function processInput(input) {
+function processInput(input, user) {
     var parsedInput = parseInt(input);
-    if (!isNaN(parsedInput) && parsedInput > 0 && parsedInput <= transitionMatrix[state].length) {
-        state = transitionMatrix[state][input];
-        console.log("Transitioning to state " + state + " using input " + input);
-        state == 0 ? validResponses = [] : validResponses.push(input);
+    var userState = currentUsers[user]['state'];
+    var nextUserState;
+    var userName = currentUsers[user]['name'] || fml_getname(user);
+    // compute next state
+    if (!isNaN(parsedInput) && parsedInput > 0 && parsedInput <= transitionMatrix[userState].length) {
+        nextUserState = transitionMatrix[userState][input];
+        console.log("Transitioning user " + userName + " to state " + currentUsers[user]['state'] + " using input " + input);
+        // record user's input
+        nextUserState == 0 ? currentUsers[user]['responses'] = []; currentUsers[user]['responses'].push(input);
     }
     else {
-        console.log("Invalid input received: " + input + "; treating as 0 for error-recovery");
-        state = transitionMatrix[state][0];
-        bot.postMessageToUser(currentUser, ERROR_MESSAGE, params);
+        console.log("Invalid input-state combination received: input " + input + " on state " + userState + "; treating as 0 for error-recovery");
+        nextUserState = transitionMatrix[userState][0];
+        // send user a friendly error message
+        bot.postMessageToUser(user, ERROR_MESSAGE, params);
     }
-
-    state == transitionMatrix.length ? showCompletion() : bot.postMessageToUser(currentUser, stateTexts[state], params);
+    // update state of user in map
+    currentUsers[user]['state'] = nextUserState;
+    nextUserState == transitionMatrix.length ? showCompletion(user) : bot.postMessageToUser(user, stateTexts[state], params);
 }
 
-function showCompletion() {
-    console.log("Wackie is done.");
-    bot.postMessageToUser(currentUser, "Thanks! You are all set! :)", params);
-    done = true;
+// Called when a user is done
+function showCompletion(user) {
+    console.log("Wackie is done with user " + currentUsers[user]['name']);
+    bot.postMessageToUser(user, "Thanks " + (currentUsers[user]['name'] || "") + "! You are all set! :)", params);
+    currentUsers[user]['done'] = true;
+    saveUserResponses(user);
 }
 
-function saveChannel() {
-    console.log("User's valid responses: " + JSON.stringify(validResponses));
+// Transfer user's responses from process memory to persistent memory - own MongoDB/REDIS store or just Slack's own DB?
+function saveUserResponses(user) {
+    var userInfo = currentUsers[user];
+    // Make DB call here
+}
+
+
+function saveAll() {
+    console.log("Wackie getting ready to sleep!");
     // save currentChannel to REDIS or MongoDB, whichever preferred
+    Object.keys(currentUsers).forEach(function(user) {
+        saveUserResponses(user);
+    });
 }
 
 function fml_getName(userID) {
-    var users = bot.getUsers();
+    //var users = bot.getUsers();
     var members = users["_value"]["members"];
     for (var index = 0; index < members.length; index ++) {
         if (members[index]["id"] == userID) {
