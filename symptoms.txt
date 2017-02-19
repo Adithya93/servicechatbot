@@ -1,0 +1,90 @@
+1.	Abdominal pain
+2.	Blood in stool
+3.	Chest pain
+4.	Constipation
+5.	Cough
+6.	Diarrhea
+7.	Difficulty swallowing
+8.	Dizziness
+9.	Eye discomfort and redness
+10.	Foot pain or ankle pain
+11.	Foot swelling or leg swelling
+12.	Headaches
+13.	Heart palpitations
+14.	Hip pain
+15.	Knee pain
+16.	Low back pain
+17.	Nasal congestion
+18.	Abdominal pain
+19.	Blood in stool
+20.	Chest pain
+21.	Constipation
+22.	Cough
+23.	Diarrhea
+24.	Difficulty swallowing
+25.	Dizziness
+26.	Eye discomfort and redness
+27.	Foot pain or ankle pain
+28.	Foot swelling or leg swelling
+29.	Headaches
+30.	Heart palpitations
+31.	Hip pain
+32.	Knee pain
+33.	Low back pain
+34.	Nasal congestion
+35.	Nausea or vomiting
+36.	Neck pain
+37.	Numbness or tingling in hands
+38.	Pelvic pain: Female
+39.	Pelvic pain: Male
+40.	Shortness of breath
+41.	Shoulder pain
+42.	Sore throat
+43.	Urinary problems
+44.	Vision problems
+45.	Wheezing
+46.	fatigue
+47.	dizziness
+48.	fainting
+49.	recent change in vision
+50.	persistent headaches
+51.	impaired hearing
+52.	earache
+53.	sore throat
+54.	chronic sinus problems
+55.	hoarseness
+56.	pain or burning with urination
+57.	difficulty in holding urine
+58.	blood in urine
+59.	awaken at night to urinate frequently
+60.	Vaginal Discharge
+61.	prostate problems
+62.	impotence
+63.	burning or discharge from penis
+64.	abdominal bloating
+65.	black, tarry stools
+66.	blood in stool
+67.	change in bowel habits
+68.	excessive belching
+69.	excessive gas
+70.	heartburn
+71.	hemorrhoids
+72.	painful swallowing
+73.	rectal pain
+74.	rectal bleeding
+75.	regurgitation of food or liquid
+76.	seizures
+77.	numbness or tingling
+78.	confusion
+79.	weakness
+80.	depression
+81.	anxiety
+82.	suicidal thoughts
+83.	heat or cold intolerance
+84.	excessive thirst or urination
+85.	abnormal bruising
+86.	abnormal bleeding
+87.	anemia
+88.	skin rash
+89.	skin itching
+90. nausea or vomiting

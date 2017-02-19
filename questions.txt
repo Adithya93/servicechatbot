@@ -1,0 +1,13 @@
+1. First, let's go through your symptoms. For each of the following symptoms that you have, enter the corresponding numbers separated by commas and hit enter. For example, "1, 3"
+2. Great! Now, for each of the following symptoms that you mentioned, please answer the following:
+2a.	 when did it start? 
+2b.	Did something happen that lead to it. 
+2c.	Have you had the same problem before
+2ci.	If yes when was the last time you had it
+2cii.	What happened last time
+2ciii.	Did the treatment work
+2civ.	When was the first time you had the same problem
+3. Excellent! Next, for the following pains that you mentioned, please answer the following:
+
+4. Thanks! Do you have any other concerns or problems?
+5. You have told me about several different problems that are important for us to discuss. We need to decide which problems to address today. Can you tell me which of the following you are most concerned about?“
