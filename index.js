@@ -1,11 +1,19 @@
 var SlackBot = require('slackbots');
 require('dotenv').config();
-var handleSymptoms = require('./handleSymptoms.js');
-var handlePains = require('./handlePains.js');
+var handleSympts = require('./handleSymptoms.js');
+//var handlePains = require('./handlePains.js');
 
+console.log("handleSymptoms obj: " + JSON.stringify(handleSympts));
+var listSymptoms = handleSympts.listSymptoms;
+var handleSymptoms = handleSympts.handleSymptoms;
+var handlePains = handleSympts.handlePains;
 
 var TOKEN = process.env.TOKEN;
 var BOTNAME = process.env.BOTNAME;
+
+var NO = 1;
+var YES = 2;
+
 var infoLoaded = false;
 
 console.log("Token: " + TOKEN);
@@ -37,7 +45,7 @@ var currentUsers = {}; // Upon starting, no currently active users
 
 // GLOBAL ENCODING OF CONTROL FLOW AND LOGIC (MOORE FSM)
 //var transitionMatrix = [[0, 1, 2], [1, 2, 3], [2, 3, 4], [3, 0, 4]];
-var transitionMatrix = [[3, 1], [3, 2], [3], [3, 1, 4], [4, 5]];
+var transitionMatrix = [[OTHER_CONCERNS_STATE, DESCRIBE_SYMPTOMS_STATE], [OTHER_CONCERNS_STATE, DESCRIBE_PAINS_STATE], [OTHER_CONCERNS_STATE], [OTHER_CONCERNS_STATE, PRIMARY_CONCERN_STATE, SPECIFY_CONCERN_STATE], [DESCRIBE_SYMPTOMS_STATE], [PRIMARY_CONCERN_STATE, COMPLETE_STATE]];
 
 var ERROR_MESSAGE = "Sorry, that is not a valid answer. Please enter one of the numbers in the prompt.";
 var PLACEHOLDER = "Alright, noted!";
@@ -49,7 +57,9 @@ var LIST_SYMPTOMS_STATE = 0;
 var DESCRIBE_SYMPTOMS_STATE = 1;
 var DESCRIBE_PAINS_STATE = 2;
 var OTHER_CONCERNS_STATE = 3;
-var PRIMARY_CONCERN_STATE = 4;
+var SPECIFY_CONCERN_STATE = 4;
+var PRIMARY_CONCERN_STATE = 5;
+var COMPLETE_STATE = 6;
 
 var users;
 
@@ -151,7 +161,8 @@ function startQuestions(user) {
     console.log("Starting workflow for user " + userName);
     currentUsers[user]['started'] = true;
     var firstQn = questionTexts[0];
-    var firstSymptoms = handleSymptoms(symptoms, currentUsers, user, "");
+    //var firstSymptoms = handleSymptoms(symptoms, currentUsers, user, "");
+    var firstSymptoms = listSymptoms(symptoms, currentUsers, user, "");
     var greeting = "Great!\n";
     bot.postMessageToUser(userName, greeting + firstQn + "\n" + firstSymptoms, params);
 }
@@ -164,13 +175,19 @@ function processInput(input, user) {
 
      // compute next state
     if (userState == LIST_SYMPTOMS_STATE) { // submit response for this set of symptoms and retrieve next symptoms to display
-        var nextMessage = handleSymptoms(symptoms, currentUsers, user, input);
+        //var nextMessage = handleSymptoms(symptoms, currentUsers, user, input);
+        var nextMessage = listSymptoms(symptoms, currentUsers, user, input);
         if (nextMessage == "done") { // transition to next state dependent on whether or not user has symptoms
             if (currentUsers[user]["symptoms"]["has"].length == 0) { // no symptoms, go straight to qn 4 (state 3)
                 nextUserState = OTHER_CONCERNS_STATE;
             }
             else { // has symptoms, go to qn 2 (state 1)
                 nextUserState = DESCRIBE_SYMPTOMS_STATE;
+                var firstDescribePrompt = handleSymptoms(currentUsers, user, "");
+                nextMessage = questionTexts[nextUserState] + "\n" + firstDescribePrompt;
+                currentUsers[user]['state'] = nextUserState;
+                bot.postMessageToUser(userName, nextMessage, params);
+                return;
             }
         }
         else { // more rounds of symptoms to come
@@ -183,32 +200,112 @@ function processInput(input, user) {
     }
 
     else if (userState == DESCRIBE_SYMPTOMS_STATE) { // submit response for this follow-up qn and retrieve next follow-up qn to display
-
+        var nextMessage = handleSymptoms(currentUsers, user, input);
+        if (nextMessage == "done") { // transition to next state dependent on whether user has pains
+            if (currentUsers[user]["pains"].length == 0 || currentUsers[user]["other"]) { // no pains or just handled additional concern, go straight to qn 4 (state 3)
+                nextUserState = OTHER_CONCERNS_STATE;
+            }
+            else { // has pains, go to qn 3 (state 2)
+                nextUserState = DESCRIBE_PAINS_STATE;
+                var firstPainPrompt = handlePains(currentUsers, user, "");
+                console.log("First pain prompt is " + firstPainPrompt);
+                nextMessage = questionTexts[nextUserState] + "\n" + firstPainPrompt;
+                currentUsers[user]['state'] = nextUserState;
+                bot.postMessageToUser(userName, nextMessage, params);
+                return;
+            }
+        }
+        else { // more rounds of symptom follow-up to come
+            nextUserState = DESCRIBE_PAINS_STATE;
+            // post next set of follow-ups to user
+            bot.postMessageToUser(userName, nextMessage, params);
+            // done until user responds to next set of follow-ups
+            return;
+        }
     }
 
     else if (userState == DESCRIBE_PAINS_STATE) {
-
+        var nextMessage = handlePains(currentUsers, user, input);
+        if (nextMessage == "done") { // transition to next state
+            nextUserState = OTHER_CONCERNS_STATE;
+        }
+        else { // more rounds of describing pain to come
+            nextUserState = DESCRIBE_PAINS_STATE;
+            // post next description qn to user
+            bot.postMessageToUser(userName, nextMessage, params);
+            return;
+        }
     }
 
-    else { // A state with Yes/No answers
-    
-   
-        if (!isNaN(parsedInput) && parsedInput > 0 && parsedInput <= transitionMatrix[userState].length) {
-            nextUserState = transitionMatrix[userState][input];
-            console.log("Transitioning user " + userName + " to state " + nextUserState + " using input " + input);
-            // record user's input
-            nextUserState == 0 ? currentUsers[user]['responses'] = [] : currentUsers[user]['responses'].push(input);
+    else if (userState == OTHER_CONCERNS_STATE) { // answer has to be either 1 for YES or 2 for NO
+        if (!isNaN(parsedInput) && parsedInput > 0 && parsedInput < 3) {
+            //nextUserState = parsedInput == YES ? SPECIFY_CONCERN_STATE : PRIMARY_CONCERN_STATE;
+            if (parsedInput == YES) {
+                nextUserState = SPECIFY_CONCERN_STATE;
+            }
+            else {
+                nextUserState = PRIMARY_CONCERN_STATE;
+                var nextMessage = getConcerns(user);
+                currentUsers[user]['state'] = nextUserState;
+                bot.postMessageToUser(userName, nextMessage, params);
+                return;
+            }
         }
         else {
-            console.log("Invalid input-state combination received: input " + input + " on state " + userState + "; treating as 0 for error-recovery");
+            console.log("Invalid answer to whether there are concerns, treating as 0 for error-recovery");
             nextUserState = transitionMatrix[userState][0];
             // send user a friendly error message
             bot.postMessageToUser(userName, ERROR_MESSAGE, params);
         }
     }
+
+    else if (userState == SPECIFY_CONCERN_STATE) { // push concern to list of concerns, set currentIndex to point there, and send to describe_symptoms_state
+        currentUsers[user]["symptoms"]["has"].push(input);
+        console.log("Pushed other concern " + parsedInput + " into user's concerns");
+        var totalSympts = currentUsers[user]["symptoms"]["has"].length;
+        currentUsers[user]["other"] = true; // so that bot goes straight back to OTHER_CONCERNS_STATE after follow-up qns for this concern
+        currentUsers[user]["symptoms"]["currentIndex"] = totalSympts - 1;
+        currentUsers[user]["symptoms"]["followUpIndex"] = 0;
+        nextUserState = DESCRIBE_SYMPTOMS_STATE;
+        var describePrompt = handleSymptoms(currentUsers, user, "");
+        nextMessage = questionTexts[nextUserState] + "\n" + describePrompt;
+        currentUsers[user]['state'] = nextUserState;
+        bot.postMessageToUser(userName, nextMessage, params);
+        return;
+    }
+
+    else if (userState == PRIMARY_CONCERN_STATE) { // record primary concern to user object
+        var userConcerns = currentUsers[user]['symptoms']['has'];
+        console.log(userName + "'s problems: " + JSON.stringify(userConcerns));
+        if (!isNaN(parsedInput) && parsedInput > 0 && parsedInput <= userConcerns.length) { 
+            currentUsers[user]['primaryConcern'] = userConcerns[parsedInput - 1]; // save to user object
+            console.log("Set " + userName + "'s primary concern to be " + currentUsers[user]['primaryConcern']);
+            //nextUserState = transitionMatrix[userState][1];
+            nextUserState = COMPLETE_STATE;
+            console.log("Set state to " + nextUserState);
+        }
+        else {
+            console.log("Invalid choice of concern, treating as 0 for error-recovery");
+            nextUserState = transitionMatrix[userState][0];
+            // send user a friendly error message
+            bot.postMessageToUser(userName, ERROR_MESSAGE, params);
+        }
+    }
+
     // update state of user in map
     currentUsers[user]['state'] = nextUserState;
-    nextUserState == transitionMatrix.length ? showCompletion(user) : bot.postMessageToUser(userName, questionTexts[nextUserState], params);
+    nextUserState == COMPLETE_STATE ? showCompletion(user) : bot.postMessageToUser(userName, questionTexts[nextUserState], params);
+}
+
+function getConcerns(user) {
+    var concernsStr = "";
+    var userConcerns = currentUsers[user]["symptoms"]["has"];
+    userConcerns.forEach(function(cons, index) {
+        concernsStr += (index + 1) +  " : " + cons + "\n";
+    });
+    console.log("Concerns string for user: " + concernsStr);
+    nextMessage = questionTexts[PRIMARY_CONCERN_STATE] + "\n" + concernsStr;
+    return nextMessage;
 }
 
 // Called when a user is done
