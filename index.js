@@ -167,7 +167,7 @@ bot.on('start', function() {
 function initUser(user) {
     var userName = fml_getName(user);
     console.log("Initializing user " + (userName || user) + "'s status");
-    var newUserObj = {'state' : 0, 'responses': [], 'started' : false, 'done': false, 'name' : userName, 'stage': 0};
+    var newUserObj = {'state' : 0, 'responses': [], 'started' : false, 'done': false, 'name' : userName, 'stage': 0, 'banter': 0};
     currentUsers[user] = newUserObj;
     console.log("Wackie is now tracking user " + userName);
     console.log("User info: " + JSON.stringify(currentUsers[user]));
@@ -181,6 +181,7 @@ function resetStatus(user) {
     currentUsers[user]['started'] = false;
     currentUsers[user]['done'] = false;
     currentUsers[user]['name'] = currentUsers[user]['name'] || fml_getName(user);
+    currentUsers[user]['banter'] = 0;
 }
 
 
@@ -208,7 +209,8 @@ function processInput(input, user) {
             showCompletion(user);
         }
         else { // continue with this stage
-            bot.postMessageToUser(userName, nextMessage, params);
+            //bot.postMessageToUser(userName, nextMessage, params);
+            addBanter(user, nextMessage);
             return;
         }
     }
@@ -239,14 +241,17 @@ function processInput(input, user) {
                 var firstDescribePrompt = handleSymptoms(currentUsers, user, "");
                 nextMessage = questionTexts[nextUserState] + "\n" + firstDescribePrompt;
                 currentUsers[user]['state'] = nextUserState;
-                bot.postMessageToUser(userName, nextMessage, params);
+                //bot.postMessageToUser(userName, nextMessage, params);
+                addBanter(user, nextMessage);
                 return;
             }
         }
         else { // more rounds of symptoms to come
             nextUserState = LIST_SYMPTOMS_STATE;
             // post next set of symptoms to user
-            bot.postMessageToUser(userName, nextMessage, params);
+            
+            //bot.postMessageToUser(userName, nextMessage, params);
+            addBanter(user, nextMessage);
             // done until user responds to next set of symptoms
             return;
         }   
@@ -271,7 +276,9 @@ function processInput(input, user) {
         else { // more rounds of symptom follow-up to come
             nextUserState = DESCRIBE_PAINS_STATE;
             // post next set of follow-ups to user
-            bot.postMessageToUser(userName, nextMessage, params);
+            
+            //bot.postMessageToUser(userName, nextMessage, params);
+            addBanter(user, nextMessage);
             // done until user responds to next set of follow-ups
             return;
         }
@@ -285,7 +292,9 @@ function processInput(input, user) {
         else { // more rounds of describing pain to come
             nextUserState = DESCRIBE_PAINS_STATE;
             // post next description qn to user
-            bot.postMessageToUser(userName, nextMessage, params);
+            
+            //bot.postMessageToUser(userName, nextMessage, params);
+            addBanter(user, nextMessage);
             return;
         }
     }
@@ -300,7 +309,9 @@ function processInput(input, user) {
                 nextUserState = PRIMARY_CONCERN_STATE;
                 var nextMessage = getConcerns(user);
                 currentUsers[user]['state'] = nextUserState;
-                bot.postMessageToUser(userName, nextMessage, params);
+                
+                //bot.postMessageToUser(userName, nextMessage, params);
+                addBanter(user, nextMessage);
                 return;
             }
         }
@@ -323,7 +334,11 @@ function processInput(input, user) {
         var describePrompt = handleSymptoms(currentUsers, user, "");
         nextMessage = questionTexts[nextUserState] + "\n" + describePrompt;
         currentUsers[user]['state'] = nextUserState;
-        bot.postMessageToUser(userName, nextMessage, params);
+        
+
+        //bot.postMessageToUser(userName, nextMessage, params);
+        addBanter(user, nextMessage);
+
         return;
     }
 
@@ -385,11 +400,13 @@ function showCompletion(user) {
 
 }
 
-/*
+
 function addBanter(user, txt) {
-    currentUsers[user]["banter"] = (currentUsers[user]["banter"] + 1) % banter.length
+    var userName = currentUsers[user]['name'];
+    currentUsers[user]["banter"] = (currentUsers[user]["banter"] + 1) % banter.length;
+    bot.postMessageToUser(userName, banter[currentUsers[user]["banter"]] + "\n" + txt, params);
 }
-*/
+
 
 // Transfer user's responses from process memory to persistent memory - own MongoDB/REDIS store or just Slack's own DB?
 function saveUserResponses(user) {
