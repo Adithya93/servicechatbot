@@ -1,0 +1,85 @@
+fevers
+night sweats
+unintentional weight loss
+enlarged lymph nodes
+fatigue
+dizziness
+fainting
+<Eyes>
+recent change in vision
+persistent headaches
+impaired hearing
+earache
+sore throat
+chronic sinus problems
+hoarseness
+<Respiratory>
+shortness of breath
+wheezing
+chronic cough
+<Cardiovascular>
+chest pain
+heart palpitations
+fluid retention
+<Genitourinary>
+pain or burning with urination
+difficulty in holding urine
+blood in urine
+awaken at night to urinate frequently
+Vaginal Discharge
+post-menopause
+are you pregnant?
+are you breastfeeding?
+tubal ligation
+prostate problems
+impotence
+burning or discharge from penis
+vasectomy
+<Gastrointestinal>
+abdominal pain
+abdominal bloating
+black, tarry stools
+blood in stool
+change in bowel habits
+constipation
+decreased appetite
+diarrhea
+esophaged reflux
+excessive belching
+excessive gas
+heartburn
+hemorrhoids
+nausea
+painful swallowing
+rectal pain
+rectal bleeding
+regurgitation of food or liquid
+take laxatives (regularly)
+trouble swallowing
+trouble with leaking of stool
+vomiting
+<Neurological>
+None
+seizures
+numbness or tingling
+confusion
+weakness
+depression
+anxiety
+suicidal thoughts
+<Endocrine>
+
+heat or cold intolerance
+excessive thirst or urination
+<Hematologic/Lymphatic>
+abnormal bruising
+abnormal bleeding
+anemia
+<Musculoskeletal>
+joint pain
+joint swelling
+back pain
+muscle pain
+<Integumentary>
+skin rash
+skin itching

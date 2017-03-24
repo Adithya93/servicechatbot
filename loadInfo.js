@@ -1,17 +1,15 @@
 var fs = require('fs');
 var readline = require('readline');
 
-var numFiles;
-var allData = {};
-
-function getData(listener, files, IDs) {
-	numFiles = files.length;
+function getData(listener, files, IDs, emitEvent) {
+	var numFiles = files.length;
+	var allData = {};
 	files.forEach(function(file, index) {
-		getInfo(listener, file, IDs[index]);
+		getInfo(listener, file, IDs[index], allData, numFiles, emitEvent);
 	});
 }
 
-function getInfo(listener, file, ID) {
+function getInfo(listener, file, ID, allData, numFiles, emitEvent) {
 	var infoStream = fs.createReadStream(file);
 	console.log("Stream now available for file " + file);
 	var rl = readline.createInterface({
@@ -25,9 +23,9 @@ function getInfo(listener, file, ID) {
 	rl.on('close', function() {
 		console.log("Done reading file " + file);
 		allData[ID] = infoArray;
-		//if (++done == numFiles)
 		if (Object.keys(allData).length == numFiles) {
-			listener.emit('infoLoaded', allData);
+			console.log("Emitting event " + emitEvent);
+			listener.emit(emitEvent, allData); // note : will not emit if there are any duplicate filenames in files
 		}
 	});
 }

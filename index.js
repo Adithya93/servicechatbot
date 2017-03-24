@@ -28,6 +28,8 @@ var bot = new SlackBot({
 var info;
 var questionTexts;
 var symptoms;
+var stagePrompts;
+var banter;
 
 bot.on('infoLoaded', function(loadedInfo) {
     console.log("Yay! All info loaded!");
@@ -35,10 +37,32 @@ bot.on('infoLoaded', function(loadedInfo) {
     infoLoaded = true;
     questionTexts = info['qns'];
     symptoms = info["sympts"];
+    stagePrompts = info["stagePrompts"];
+    banter = info["banter"];
     bot.emit('start');
 });
 
-var getQuestions = require('./loadInfo.js')(bot, ["./questions.txt", "./symptoms.txt"], ["qns", "sympts"]);
+var getQuestions = require('./loadInfo.js')(bot, ["./questions.txt", "./symptoms.txt", "./stagePrompts", "./banter.txt"], ["qns", "sympts", "stagePrompts", "banter"], 'infoLoaded');
+//var stage2 = require('./stage2.js')(bot);
+var stage2 = require('./stage2.js');
+console.log("Calling initStage2");
+stage2.initStage2(bot);
+
+/*
+function testStage2(stage2) {
+    var dummyObj = {};
+    var testIndex = 1;
+    console.log("About to test stage 2");
+    while (testIndex <= stage2.NUM_SYMPTOMS) {
+        console.log(stage2.test(dummyObj, testIndex));
+        testIndex += stage2.BATCH_SIZE;
+    }
+}
+*/
+
+//testStage2(stage2);
+//stage2.test();
+
 var conditionsMet = 0;
 
 var currentUsers = {}; // Upon starting, no currently active users
@@ -62,6 +86,9 @@ var PRIMARY_CONCERN_STATE = 5;
 var COMPLETE_STATE = 6;
 
 var users;
+
+
+var NUM_STAGES = 5;
 
 bot.on('start', function() {
     conditionsMet ++;
@@ -140,7 +167,7 @@ bot.on('start', function() {
 function initUser(user) {
     var userName = fml_getName(user);
     console.log("Initializing user " + (userName || user) + "'s status");
-    var newUserObj = {'state' : 0, 'responses': [], 'started' : false, 'done': false, 'name' : userName};
+    var newUserObj = {'state' : 0, 'responses': [], 'started' : false, 'done': false, 'name' : userName, 'stage': 0};
     currentUsers[user] = newUserObj;
     console.log("Wackie is now tracking user " + userName);
     console.log("User info: " + JSON.stringify(currentUsers[user]));
@@ -149,6 +176,7 @@ function initUser(user) {
 function resetStatus(user) {
     if (!currentUsers[user]) return initUser(user);
     currentUsers[user]['state'] = 0;
+    currentUsers[user]['stage'] = 0;
     currentUsers[user]['responses'] = [];
     currentUsers[user]['started'] = false;
     currentUsers[user]['done'] = false;
@@ -160,10 +188,11 @@ function startQuestions(user) {
     var userName = currentUsers[user]['name'];
     console.log("Starting workflow for user " + userName);
     currentUsers[user]['started'] = true;
+    currentUsers[user]['stage'] = 1;
     var firstQn = questionTexts[0];
     //var firstSymptoms = handleSymptoms(symptoms, currentUsers, user, "");
     var firstSymptoms = listSymptoms(symptoms, currentUsers, user, "");
-    var greeting = "Great!\n";
+    var greeting = "Great! First, let's go through some common symptoms.\n";
     bot.postMessageToUser(userName, greeting + firstQn + "\n" + firstSymptoms, params);
 }
 
@@ -172,6 +201,30 @@ function processInput(input, user) {
     var userState = currentUsers[user]['state'];
     var nextUserState;
     var userName = currentUsers[user]['name'] || fml_getName(user);
+
+    if (currentUsers[user]['stage'] == 2) {
+        var nextMessage = stage2.processFeatures(currentUsers, user, input);
+        if (nextMessage == "done") { // transition to next stage
+            showCompletion(user);
+        }
+        else { // continue with this stage
+            bot.postMessageToUser(userName, nextMessage, params);
+            return;
+        }
+    }
+
+    if (currentUsers[user]['stage'] == 3) {
+
+    }
+
+    if (currentUsers[user]['stage'] == 4) {
+
+    }
+
+    if (currentUsers[user]['stage'] == 5) {
+
+    }    
+
 
      // compute next state
     if (userState == LIST_SYMPTOMS_STATE) { // submit response for this set of symptoms and retrieve next symptoms to display
@@ -202,7 +255,7 @@ function processInput(input, user) {
     else if (userState == DESCRIBE_SYMPTOMS_STATE) { // submit response for this follow-up qn and retrieve next follow-up qn to display
         var nextMessage = handleSymptoms(currentUsers, user, input);
         if (nextMessage == "done") { // transition to next state dependent on whether user has pains
-            if (currentUsers[user]["pains"].length == 0 || currentUsers[user]["other"]) { // no pains or just handled additional concern, go straight to qn 4 (state 3)
+            if (currentUsers[user]["pains"]["has"].length == 0 || currentUsers[user]["other"]) { // no pains or just handled additional concern, go straight to qn 4 (state 3)
                 nextUserState = OTHER_CONCERNS_STATE;
             }
             else { // has pains, go to qn 3 (state 2)
@@ -311,11 +364,32 @@ function getConcerns(user) {
 // Called when a user is done
 function showCompletion(user) {
     var userName = currentUsers[user]['name'];
-    console.log("Wackie is done with user " + userName);
-    bot.postMessageToUser(userName, "Thanks " + (userName || "") + "! You are all set! :)", params);
-    currentUsers[user]['done'] = true;
-    saveUserResponses(user);
+    console.log("Wackie is done with user " + userName + " for stage " + currentUsers[user]['stage']);
+    
+    if (currentUsers[user]['stage'] == NUM_STAGES) {
+        console.log("User " + userName + " has completed all stages!");
+        bot.postMessageToUser(userName, "Thanks " + (userName || "") + "! You are all set! :)", params);
+        currentUsers[user]['done'] = true;
+        saveUserResponses(user);
+    }
+
+    else {
+        var message = "Congratulations " + (userName || "") + "! You are done with stage " + currentUsers[user]['stage'];
+        //bot.postMessageToUser(userName, "Congratulations " + (userName || "") + "! You are done with stage " + currentUsers[user]['stage'], params);
+        currentUsers[user]['stage'] += 1;
+        console.log("Transitioning user to stage " + currentUsers[user]['stage']);
+        message += "\n" + stagePrompts[currentUsers[user]['stage'] - 2];
+        //bot.postMessageToUser(userName, stagePrompts[currentUsers[user]['stage'] - 2], params);
+        bot.postMessageToUser(userName, message, params);
+    }
+
 }
+
+/*
+function addBanter(user, txt) {
+    currentUsers[user]["banter"] = (currentUsers[user]["banter"] + 1) % banter.length
+}
+*/
 
 // Transfer user's responses from process memory to persistent memory - own MongoDB/REDIS store or just Slack's own DB?
 function saveUserResponses(user) {
